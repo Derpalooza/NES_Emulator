@@ -15,37 +15,86 @@ typedef struct
     uint8_t     padding[7];     // Last 7 bytes of the header are reserved for future upgrades
 } INES_Header_t;
 
-int memory_init(Memory_t* memory)
+// Parse 16-bit address and return a pointer to the corresponding data
+static uint8_t* route_address(Memory_t* memory, uint16_t addr)
 {
-    memset(memory, 0, sizeof(Memory_t));
+    uint8_t *target_addr;
+
+    // TODO: Create a header file defining each of these address ranges so we don't have to use
+    //       magic numbers to decide the ranges
+    if (addr < 0x2000)
+    {
+        // The address lies in RAM. Use the lower 11 bits to simulate mirroring
+        target_addr = &memory->RAM[addr & 0x7FF];
+    }
+    else if (addr < 0x4000)
+    {
+        // The address targets the PPU I/O registers. Use lower 8 bits to simulate mirroring
+        target_addr = &memory->PPU_Registers[addr & 0x7];
+    }
+    else if (addr < 0x4020)
+    {
+        // The address targets the APU I/O registers
+        target_addr = &memory->APU_Registers[addr & 0x1F];
+    }
+    else if (addr < 0x6000)
+    {
+        // The address lies in the Expansion ROM
+        target_addr = &memory->Expansion_ROM[addr & 0x1FFF];
+    }
+    else if (addr < 0x8000)
+    {
+        // The address lies in SRAM
+        target_addr = &memory->SRAM[addr & 0x1FFF];
+    }
+    else if (addr < 0xC000)
+    {
+        // The address lies in the PRG-ROM lower bank
+        target_addr = &memory->PRG_ROM_Lower_Bank[addr & 0x3FFF];
+    }
+    else
+    {
+        // The address lies in the PRG-ROM upper bank
+        target_addr = &memory->PRG_ROM_Upper_Bank[addr & 0x3FFF];
+    }
+
+    return target_addr;
 }
 
-int memory_load_rom(Memory_t* memory, char* rom_file_path)
+status_t memory_init(Memory_t* memory)
+{
+    memset(memory, 0, sizeof(Memory_t));
+
+    return STATUS_SUCCESS;
+}
+
+status_t memory_load_rom(Memory_t* memory, char* rom_file_path)
 {
     if ((memory == NULL) || (rom_file_path == NULL))
     {
         printf("Invalid parameters/file path\n");
-        return -1;
+        return STATUS_EINVALIDPARAMS;
     }
 
     FILE *file = fopen(rom_file_path, "rb");
     if (file == NULL) {
         printf("Error: Unable to open %s\n", rom_file_path);
-        return -1;
+        return STATUS_EFILEERROR;
     }
 
     // Read iNES header
-    INES_Header_t header = {};
+    INES_Header_t header = {0};
     size_t bytes_read = fread(&header, 1, sizeof(INES_Header_t), file);
     if (bytes_read != sizeof(INES_Header_t))
     {
         printf("Error: Read %d of bytes from %s ROM header instead of %d\n", bytes_read, rom_file_path, sizeof(INES_Header_t));
-        return -1;
+        return STATUS_EFILEERROR;
     }
 
     if (INES_MAGIC_NUMBER != header.magic_number)
     {
         printf("Error: %s is not a valid iNES ROM\n", rom_file_path);
+        return STATUS_EFILEERROR;
     }
 
     printf("Magic number = 0x%x\n", header.magic_number);
@@ -59,12 +108,12 @@ int memory_load_rom(Memory_t* memory, char* rom_file_path)
     if (mapper_number != 0)
     {
         printf("Error: Mapper numbers other than 0 are currently unsupported");
-        return -1;
+        return STATUS_EINVALIDPARAMS;
     }
     else if ((header.prg_rom_size == 0) || (header.prg_rom_size > 2))
     {
         printf("Error: Invalid number of PRG-ROM banks (%d banks)", header.prg_rom_size);
-        return -1;
+        return STATUS_EINVALIDPARAMS;
     }
 
     // Load PRG-ROM segments into lower bank.
@@ -72,7 +121,7 @@ int memory_load_rom(Memory_t* memory, char* rom_file_path)
     if (bytes_read != PRG_ROM_SIZE)
     {
         printf("Error: Read %d of bytes instead of %d\n", bytes_read, PRG_ROM_SIZE);
-        return -1;
+        return STATUS_EFILEERROR;
     }
 
     if (header.prg_rom_size == 2)
@@ -82,7 +131,7 @@ int memory_load_rom(Memory_t* memory, char* rom_file_path)
         if (bytes_read != PRG_ROM_SIZE)
         {
             printf("Error: Read %d of bytes instead of %d\n", bytes_read, PRG_ROM_SIZE);
-            return -1;
+            return STATUS_EFILEERROR;
         }
     }
     else
@@ -90,14 +139,24 @@ int memory_load_rom(Memory_t* memory, char* rom_file_path)
         // Copy lower bank into upper bank
         memcpy(memory->PRG_ROM_Upper_Bank, memory->PRG_ROM_Lower_Bank, PRG_ROM_SIZE);
     }
+
+    fclose(file);
 }
 
-int memory_read_byte(Memory_t* memory, uint16_t addr, uint8_t* data)
+status_t memory_read_byte(Memory_t* memory, uint16_t addr, uint8_t* data)
 {
+    uint8_t *target_addr = route_address(memory, addr);
 
+    *data = *target_addr;
+
+    return STATUS_SUCCESS;
 }
 
-int memory_write_byte(Memory_t* memory, uint16_t addr, uint8_t data)
+status_t memory_write_byte(Memory_t* memory, uint16_t addr, uint8_t data)
 {
+    uint8_t *target_addr = route_address(memory, addr);
 
+    *target_addr = data;
+
+    return STATUS_SUCCESS;
 }
