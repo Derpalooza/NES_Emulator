@@ -47,6 +47,6 @@ int main(int argc, char *argv[])
             printf("Failed to execute CPU cycle\n");
             break;
         }
-        usleep(500000);
+        usleep(125000);
     }
 }

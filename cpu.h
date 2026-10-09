@@ -21,25 +21,11 @@ typedef enum
     NUM_CPU_STATES
 } cpu_state_t;
 
-typedef enum
-{
-    CPU_ADDR_MODE_IMMEDIATE = 0,
-    CPU_ADDR_MODE_ZEROPAGE,
-    CPU_ADDR_MODE_ZEROPAGE_X,
-    CPU_ADDR_MODE_ABSOLUTE,
-    CPU_ADDR_MODE_ABSOLURE_X,
-    CPU_ADDR_MODE_ABSOLUTE_Y,
-    CPU_ADDR_MODE_INDIRECT_X,
-    CPU_ADDR_MODE_INDIRECT_Y,
-    CPU_ADDR_MODE_IMPLIED,
-    NUM_CPU_ADDR_MODES
-} addressing_mode_t;
-
 typedef struct
 {
     // Registers
     uint16_t    PC;     // Program Counter
-    uint16_t    SP;     // Stack Pointer
+    uint8_t     SP;     // Stack Pointer
     uint8_t     A;      // Accumulator Register
     uint8_t     X;      // Index Regster X
     uint8_t     Y;      // Index Register Y
@@ -47,10 +33,10 @@ typedef struct
 
     // Tracking data
     uint32_t    cycle_count;
-    uint32_t    state;              // Current point in the opcode state machine
-    uint8_t     current_opcode;     // Currently held instruction
-    uint8_t     remaining_cycles;   // Number of cycles needed to read the opcode operands
-    uint16_t    effective_address;  // Store memory address obtained from operands
+    uint32_t    state;                  // Current point in the opcode state machine
+    uint8_t     current_opcode;         // Holds the opcode currently being processed
+    uint8_t     current_opcode_cycles;  // Number of cycles that were spent processing the current opcode
+    uint16_t    operand;                // Store operand obtained from opcode
 } cpu_t;
 
 // Put CPU to initial state

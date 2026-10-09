@@ -8,7 +8,7 @@
 // TODO: The ROM start address will be read directly from the reset vector for now. But this needs to change
 //       once interrupts are properly implemented
 #define CPU_RESET_VECTOR                   0xFFFC
-#define STACK_POINTER_RESET                0x01FD
+#define STACK_POINTER_RESET                0x00
 
 status_t cpu_init(cpu_t* cpu, Memory_t* memory)
 {
@@ -46,8 +46,8 @@ status_t cpu_init(cpu_t* cpu, Memory_t* memory)
     cpu->state = CPU_STATE_FETCH;
     cpu->cycle_count = 0;
 
-    cpu->remaining_cycles = 0;
-    cpu->effective_address = 0;
+    cpu->current_opcode_cycles = 0;
+    cpu->operand = 0;
 }
 
 status_t cpu_trigger_interrupt(cpu_t* cpu, Memory_t* memory)
@@ -69,14 +69,16 @@ status_t cpu_execute_cycle(cpu_t* cpu, Memory_t* memory)
             printf("memory_read_byte failed with status = %d\n", status);
             return status;
         }
+
+        cpu->current_opcode_cycles = 0;
     }
 
-    printf("PC = 0x%04x, opcode = 0x%02x, status = 0x%02x, X = 0x%02x, Y = 0x%02x, A = 0x%02x, state = %d\n", cpu->PC, cpu->current_opcode, cpu->P, cpu->X, cpu->Y, cpu->A, cpu->state);
+    printf("PC = 0x%04x, opcode = 0x%02x, status = 0x%02x, X = 0x%02x, Y = 0x%02x, A = 0x%02x, stack = 0x%02x, state = %d\n", cpu->PC, cpu->current_opcode, cpu->P, cpu->X, cpu->Y, cpu->A, cpu->SP, cpu->state);
 
     opcode_t opcode_fn = get_opcode_jump_table(cpu->current_opcode);
     if (opcode_fn == NULL)
     {
-        printf("Invalid opcode 0x%04x\n", cpu->current_opcode);
+        printf("Invalid opcode 0x%02x\n", cpu->current_opcode);
         return STATUS_EINVALIDPARAMS;
     }
     else
@@ -91,5 +93,6 @@ status_t cpu_execute_cycle(cpu_t* cpu, Memory_t* memory)
 
     
     cpu->cycle_count++;
+    cpu->current_opcode_cycles++;
     return 0;
 }
