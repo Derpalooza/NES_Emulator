@@ -19,11 +19,12 @@
 #define CPU_ADDR_MODE_ZERO_PAGE_IDX		0x5
 #define CPU_ADDR_MODE_ABSOLUTE_Y		0x6
 #define CPU_ADDR_MODE_ABSOLUTE_X		0x7
+#define CPU_ADDR_MODE_IMPLIED           0x8
+#define CPU_ADDR_MODE_RELATIVE          0x9
 
 // Populates source register with contents of destination register, and sets status bits
 // Registers MUST be set through this function. They must not be modified directly
 void cpu_set_register(cpu_t* cpu, uint8_t* dst, uint8_t src);
-
 
 
 // Pure helper functions
@@ -33,5 +34,8 @@ uint8_t cpu_get_opcode_addressing_mode(uint8_t opcode);
 
 // Obtain the target register of the given opcode and returns a CPU_REGISTER_* macro
 uint8_t cpu_get_target_register(uint8_t opcode);
+
+// Print the instruction mnemonic for debugging purposes
+void cpu_print_instruction(uint16_t operand, char* instr_name, uint8_t addr_mode);
 
 #endif

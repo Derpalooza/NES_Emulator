@@ -1,6 +1,7 @@
 #include "opcode.h"
 
 #include <stdio.h>
+#include <stdbool.h>
 
 #include "cpu.h"
 #include "memory.h"
@@ -31,9 +32,12 @@ status_t get_operand_immediate(cpu_t* cpu, Memory_t* memory)
 	switch (cpu->current_opcode_cycles)
 	{
 		case 0:
+		{
 			cpu->PC++;
 			break;
+		}
 		case 1:
+		{
 			// Read operand byte
 			uint8_t operand_byte = 0;
 			status = memory_read_byte(memory, cpu->PC, &operand_byte);
@@ -47,7 +51,9 @@ status_t get_operand_immediate(cpu_t* cpu, Memory_t* memory)
 			cpu->PC++;
 			status = STATUS_SUCCESS;
 			break;
+		}
 		default:
+			break;
 	}
 	
     return status;
@@ -427,8 +433,6 @@ status_t get_operand(cpu_t* cpu, Memory_t* memory)
 }
 
 // Flag (Processor Status) Instructions
-// TODO: See if these can be joined into one function
-
 status_t proc_flag_set_clear(cpu_t* cpu, Memory_t* memory)
 {
     status_t status = get_operand_implied(cpu, memory);
@@ -451,33 +455,36 @@ status_t proc_flag_set_clear(cpu_t* cpu, Memory_t* memory)
             {
                 case 0x18:
                     cpu->P &= ~STATUS_CARRY_FLAG_MASK;
-                    printf("CLC\n\n");
+					cpu_print_instruction(cpu->operand, "CLC", CPU_ADDR_MODE_IMPLIED);
                     break;
                 case 0x38:
                     cpu->P |= STATUS_CARRY_FLAG_MASK;
-                    printf("SEC\n\n");
+					cpu_print_instruction(cpu->operand, "CLC", CPU_ADDR_MODE_IMPLIED);
                     break;
                 case 0x58:
                     cpu->P &= ~STATUS_INTERRUPT_DISABLE_MASK;
-                    printf("CLI\n\n");
+					cpu_print_instruction(cpu->operand, "CLI", CPU_ADDR_MODE_IMPLIED);
                     break;
                 case 0x78:
                     cpu->P |= STATUS_INTERRUPT_DISABLE_MASK;
-                    printf("SEI\n\n");
+					cpu_print_instruction(cpu->operand, "SEI", CPU_ADDR_MODE_IMPLIED);
                     break;
                 case 0xB8:
                     cpu->P &= ~STATUS_OVERFLOW_MASK;
-                    printf("CLV\n\n");
+					cpu_print_instruction(cpu->operand, "CLV", CPU_ADDR_MODE_IMPLIED);
                     break;
                 case 0xD8:
                     cpu->P &= ~STATUS_DECIMAL_MODE_MASK;
-                    printf("CLD\n\n");
+					cpu_print_instruction(cpu->operand, "CLD", CPU_ADDR_MODE_IMPLIED);
                     break;
                 case 0xF8:
                     cpu->P |= STATUS_DECIMAL_MODE_MASK;
-                    printf("SED\n\n");
+					cpu_print_instruction(cpu->operand, "SED", CPU_ADDR_MODE_IMPLIED);
                     break;
                 default:
+					printf("Opcode 0x%x is invalid for proc_flag_set_clear\n", cpu->current_opcode);
+					status = STATUS_EINVALIDPARAMS;
+					break;
             }
             cpu->state = CPU_STATE_FETCH;
             break;
@@ -510,7 +517,7 @@ status_t jmp_absolute(cpu_t* cpu, Memory_t* memory)
             switch (status)
             {
                 case STATUS_SUCCESS:
-                    printf("JMP 0x%04x\n\n", cpu->operand);
+					cpu_print_instruction(cpu->operand, "JMP", CPU_ADDR_MODE_ABSOLUTE);
                     cpu->PC = cpu->operand;
                     cpu->state = CPU_STATE_FETCH;
                     break;
@@ -529,6 +536,7 @@ status_t jmp_absolute(cpu_t* cpu, Memory_t* memory)
     return status;
 }
 
+// TODO: For Store, Indirect Y must take strictly 6 cycles, not just 5+ like everything else. Fix this
 status_t store(cpu_t* cpu, Memory_t* memory)
 {
     status_t status = STATUS_SUCCESS;
@@ -582,7 +590,14 @@ status_t store(cpu_t* cpu, Memory_t* memory)
             break;
         case CPU_STATE_EXECUTE:
             memory_write_byte(memory, cpu->operand, *reg);
-            printf("ST%s 0x%04x\n\n", (target_register == CPU_REGISTER_Y) ? "Y" : (target_register == CPU_REGISTER_A) ? "A" : "X", cpu->operand);
+
+			// Print opcode information
+			char instr_name[8] = {};
+			sprintf(instr_name, "ST%s", (target_register == CPU_REGISTER_Y) ? "Y" : (target_register == CPU_REGISTER_A) ? "A" : "X", cpu->operand);
+			uint8_t addr_mode = cpu_get_opcode_addressing_mode(cpu->current_opcode);
+			cpu_print_instruction(cpu->operand, instr_name, addr_mode);
+
+
             cpu->state = CPU_STATE_FETCH;
             break;
         default:
@@ -659,52 +674,52 @@ status_t transfer_register(cpu_t* cpu, Memory_t* memory)
 				case 0xA8:
 					// Transfer Accumulator to Y
 					cpu_set_register(cpu, &cpu->Y, cpu->A);
-					printf("TAY (Transfer A to Y)\n\n");
+					cpu_print_instruction(cpu->operand, "TAY", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0xAA:
 					// Transfer Accumulator to X
 					cpu_set_register(cpu, &cpu->X, cpu->A);
-					printf("TAX (Transfer A to X)\n\n");
+					cpu_print_instruction(cpu->operand, "TAX", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0xBA:
 					// Transfer Stack pointer to X
 					cpu_set_register(cpu, &cpu->X, cpu->SP);
-					printf("TSX (Transfer Stack ptr to X)\n\n");
+					cpu_print_instruction(cpu->operand, "TSX", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0x98:
 					// Transfer Y to Accumulator
 					cpu_set_register(cpu, &cpu->A, cpu->Y);
-					printf("TYA (Transfer Y to A)\n\n");
+					cpu_print_instruction(cpu->operand, "TYA", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0x8A:
 					// Transfer X to Accumulator
 					cpu_set_register(cpu, &cpu->A, cpu->X);
-					printf("TXA (Transfer X to A)\n\n");
+					cpu_print_instruction(cpu->operand, "TXA", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0x9A:
 					// Transfer X to Stack pointer
 					cpu_set_register(cpu, &cpu->SP, cpu->X);
-					printf("TXS (Transfer X to Stack ptr)\n\n");
+					cpu_print_instruction(cpu->operand, "TXS", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0xE8:
 					// Increment X
 					cpu_set_register(cpu, &cpu->X, cpu->X + 1);
-					printf("INX (INcrement X)\n\n");
+					cpu_print_instruction(cpu->operand, "INX", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0xC8:
 					// Increment Y
 					cpu_set_register(cpu, &cpu->Y, cpu->Y + 1);
-					printf("INY (INcrement Y)\n\n");
+					cpu_print_instruction(cpu->operand, "INY", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0xCA:
 					// Increment Y
 					cpu_set_register(cpu, &cpu->X, cpu->X - 1);
-					printf("DEX (DEcrement X)\n\n");
+					cpu_print_instruction(cpu->operand, "DEX", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0x88:
 					// Increment Y
 					cpu_set_register(cpu, &cpu->Y, cpu->Y - 1);
-					printf("DEY (DEcrement Y)\n\n");
+					cpu_print_instruction(cpu->operand, "DEY", CPU_ADDR_MODE_IMPLIED);
 					break;
 				default:
 					printf("Opcode 0x%02x is invalid for transfer_register\n", cpu->current_opcode);
@@ -730,12 +745,15 @@ status_t jump_to_subroutine(cpu_t* cpu, Memory_t* memory)
 	switch (cpu->current_opcode_cycles)
 	{
 		case 0:
+		{
 			cpu->state = CPU_STATE_DECODE;
 			cpu->operand = 0x0;
 			cpu->PC++;
 			status = STATUS_SUCCESS;
 			break;
+		}
 		case 1:
+		{
 			// Fetch low address byte of subroutine address
 			uint8_t low_addr_byte = 0;
 			status = memory_read_byte(memory, cpu->PC, &low_addr_byte);
@@ -747,10 +765,14 @@ status_t jump_to_subroutine(cpu_t* cpu, Memory_t* memory)
 			cpu->operand = low_addr_byte;
 			cpu->PC++;
 			break;
+		}
 		case 2:
+		{
 			// Origina
 			break;
+		}
 		case 3:
+		{
 			// Put high byte of PC on the stack and decrement stack pointer
 			uint8_t PC_high_byte = (cpu->PC >> 8);
 			status = memory_write_byte(memory, cpu->SP, PC_high_byte);
@@ -761,7 +783,9 @@ status_t jump_to_subroutine(cpu_t* cpu, Memory_t* memory)
 			}
 			cpu->SP--;
 			break;
+		}
 		case 4:
+		{
 			// Put low byte of PC on the stack and decrement stack pointer
 			uint8_t PC_low_byte = (cpu->PC & 0xFF);
 			status = memory_write_byte(memory, cpu->SP, PC_low_byte);
@@ -772,7 +796,9 @@ status_t jump_to_subroutine(cpu_t* cpu, Memory_t* memory)
 			}
 			cpu->SP--;
 			break;
+		}
 		case 5:
+		{
 			// Fetch high address byte of subroutine address
 			uint8_t high_addr_byte = 0;
 			status = memory_read_byte(memory, cpu->PC, &high_addr_byte);
@@ -784,10 +810,249 @@ status_t jump_to_subroutine(cpu_t* cpu, Memory_t* memory)
 			cpu->operand |= (high_addr_byte << 8);
 			cpu->PC = cpu->operand;
 			cpu->state = CPU_STATE_FETCH;
-			printf("JSR 0x%02x\n\n", cpu->operand);
+			cpu_print_instruction(cpu->operand, "JSR", CPU_ADDR_MODE_ABSOLUTE);
+			break;
+		}
+	}
+
+    return status;
+}
+
+status_t get_operand_relative(cpu_t* cpu, Memory_t* memory)
+{
+	status_t status = STATUS_INPROGRESS;
+	uint8_t operand_byte = 0;
+	
+	switch (cpu->current_opcode_cycles)
+	{
+		case 0:
+			cpu->PC++;
+			status = STATUS_INPROGRESS;
+			break;
+		case 1:
+			// Read offset byte stored in operand
+			status = memory_read_byte(memory, cpu->PC, &operand_byte);
+			if (status != STATUS_SUCCESS)
+			{
+				printf("memory_read_byte failed with error %d\n", status);
+				return status;
+			}
+			cpu->operand = operand_byte;
+			cpu->PC++;
+			status = STATUS_INPROGRESS;
+			break;
+		case 2:
+			// Perform dummy read of PC
+			status = memory_read_byte(memory, cpu->PC, &operand_byte);
+
+			// Calculate new PC (the branch offset must be signed for relative addressing, as it is a +/- offset)
+			int8_t offset = cpu->operand & 0xFF;
+			uint16_t new_PC = cpu->PC + offset;
+
+			// Compare the upper bytes of the current and new PC to determine if a page fault occured
+			if ((new_PC & 0xFF00) == (cpu->PC & 0xFF00))
+			{
+				// If the upper bytes are equal, then no page fault happened. We can end the relative addressing operation
+				status = STATUS_SUCCESS;
+			}
+			else
+			{
+				// If a page fault occurred, save the full new address for the next cycle
+				cpu->operand = new_PC;
+			}
+
+			// Update lower byte of PC
+			cpu->PC = (cpu->PC & 0xFF00) | (new_PC & 0xFF);
+			break;
+		case 3:
+			// Perform dummy read of PC
+			status = memory_read_byte(memory, cpu->PC, &operand_byte);
+
+			// Update PC with full new address
+			cpu->PC = cpu->operand;
+
+			status = STATUS_SUCCESS;
+			break;
+		default:
+			printf("Exceeded number of cycles (%d cycles) for this addressing mode\n", cpu->current_opcode_cycles);
+			status = STATUS_EINVALIDPARAMS;
 			break;
 	}
 
+    return status;
+}
+
+status_t branch(cpu_t* cpu, Memory_t* memory)
+{
+	status_t status = STATUS_SUCCESS;
+
+	status = get_operand_relative(cpu, memory);
+
+	switch (cpu->state)
+    {
+        case CPU_STATE_FETCH:
+			if (status == STATUS_INPROGRESS)
+			{
+				cpu->state = CPU_STATE_DECODE;
+				status = STATUS_SUCCESS;
+			}
+			break;
+		case CPU_STATE_DECODE:
+			if (status == STATUS_INPROGRESS)
+			{
+				bool branch_taken = false;
+
+				// Check operand against status bits to determine if the branch is taken
+				switch (cpu->current_opcode)
+				{
+					case 0x10:
+						// Branch on plus (negative clear)
+						if (!(cpu->P & STATUS_NEGATIVE_MASK))
+						{
+							branch_taken = true;
+						}
+						break;
+					case 0x30:
+						// Branch on minus (negative set)
+						if (cpu->P & STATUS_NEGATIVE_MASK)
+						{
+							branch_taken = true;
+						}
+						break;
+					case 0x50:
+						// Branch on overflow clear
+						if (!(cpu->P & STATUS_OVERFLOW_MASK))
+						{
+							branch_taken = true;
+						}
+						break;
+					case 0x70:
+						// Branch on overflow set
+						if (cpu->P & STATUS_OVERFLOW_MASK)
+						{
+							branch_taken = true;
+						}
+						break;
+					case 0x90:
+						// Branch on carry clear
+						if (!(cpu->P & STATUS_CARRY_FLAG_MASK))
+						{
+							branch_taken = true;
+						}
+						break;
+					case 0xB0:
+						// Branch on carry set
+						if (cpu->P & STATUS_CARRY_FLAG_MASK)
+						{
+							branch_taken = true;
+						}
+						break;
+					case 0xD0:
+						// Branch on not equal (zero clear)
+						if (!(cpu->P & STATUS_ZERO_FLAG_MASK))
+						{
+							branch_taken = true;
+						}
+						break;
+					case 0xF0:
+						// Branch on equal (zero set)
+						if (cpu->P & STATUS_ZERO_FLAG_MASK)
+						{
+							branch_taken = true;
+						}
+						break;
+                    default:
+                        printf("Opcode 0x%x is invalid for branch", cpu->current_opcode);
+                        status = STATUS_EINVALIDPARAMS;
+				}
+
+				// If the branch isn't taken, end this instruction by setting the state to FETCH. Otherwise,
+				// consume an additional cycle to resolve the branch
+				cpu->state = (branch_taken) ? CPU_STATE_EXECUTE : CPU_STATE_FETCH;
+				status = STATUS_SUCCESS;
+			}
+            break;
+		case CPU_STATE_EXECUTE:
+			// Once the branch has properly resolved, get_operand_relative will return SUCCESS
+			// (This lets us stall for any additional cycles that are due to page faulting)
+			if (status == STATUS_SUCCESS)
+			{
+				cpu->state = CPU_STATE_FETCH;
+			}
+
+			status = STATUS_SUCCESS;
+			break;
+		default:
+            printf("CPU state %d is invalid for opcode 0x%02x\n", cpu->state, cpu->current_opcode);
+            status = STATUS_EINVALIDPARAMS;
+	}
+
+	if (cpu->state == CPU_STATE_FETCH)
+	{
+		switch (cpu->current_opcode)
+		{
+			case 0x10:
+				cpu_print_instruction(cpu->operand, "BPL", CPU_ADDR_MODE_RELATIVE);
+				break;
+			case 0x30:
+				cpu_print_instruction(cpu->operand, "BMI", CPU_ADDR_MODE_RELATIVE);
+				break;
+			case 0x50:
+				cpu_print_instruction(cpu->operand, "BVC", CPU_ADDR_MODE_RELATIVE);
+				break;
+			case 0x70:
+				cpu_print_instruction(cpu->operand, "BVS", CPU_ADDR_MODE_RELATIVE);
+				break;
+			case 0x90:
+				cpu_print_instruction(cpu->operand, "BCC", CPU_ADDR_MODE_RELATIVE);
+				break;
+			case 0xB0:
+				cpu_print_instruction(cpu->operand, "BCS", CPU_ADDR_MODE_RELATIVE);
+				break;
+			case 0xD0:
+				cpu_print_instruction(cpu->operand, "BNE", CPU_ADDR_MODE_RELATIVE);
+				break;
+			case 0xF0:
+				cpu_print_instruction(cpu->operand, "BEQ", CPU_ADDR_MODE_RELATIVE);
+				break;
+            default:
+                printf("Opcode 0x%x is invalid for branch", cpu->current_opcode);
+                status = STATUS_EINVALIDPARAMS;
+		}
+	}
+
+	return status;
+}
+
+status_t increment(cpu_t* cpu, Memory_t* memory)
+{
+	status_t status = STATUS_SUCCESS;
+
+	switch (cpu->state)
+    {
+        case CPU_STATE_FETCH:
+				cpu->state = CPU_STATE_DECODE;
+			break;
+		case CPU_STATE_DECODE:
+            status = get_operand(cpu, memory);
+			if (status == STATUS_SUCCESS)
+			{
+				cpu->state = CPU_STATE_EXECUTE;
+				
+			}
+            break;
+        case CPU_STATE_EXECUTE:
+		{
+			// This is a read-modify-write instruction. Must perform a dummy write of the operand
+			// to the effective address before modifying the operand
+			break;
+		}
+		default:
+			printf("Exceeded number of cycles (%d cycles) for this addressing mode\n", cpu->current_opcode_cycles);
+			status = STATUS_EINVALIDPARAMS;
+			break;
+	}
+    
     return status;
 }
 
@@ -808,7 +1073,7 @@ static opcode_t opcode_jump_table[] = {
 	[0x0D] = NULL,
 	[0x0E] = NULL,
 	[0x0F] = NULL,
-	[0x10] = NULL,
+	[0x10] = branch,
 	[0x11] = NULL,
 	[0x12] = NULL,
 	[0x13] = NULL,
@@ -840,7 +1105,7 @@ static opcode_t opcode_jump_table[] = {
 	[0x2D] = NULL,
 	[0x2E] = NULL,
 	[0x2F] = NULL,
-	[0x30] = NULL,
+	[0x30] = branch,
 	[0x31] = NULL,
 	[0x32] = NULL,
 	[0x33] = NULL,
@@ -872,7 +1137,7 @@ static opcode_t opcode_jump_table[] = {
 	[0x4D] = NULL,
 	[0x4E] = NULL,
 	[0x4F] = NULL,
-	[0x50] = NULL,
+	[0x50] = branch,
 	[0x51] = NULL,
 	[0x52] = NULL,
 	[0x53] = NULL,
@@ -904,7 +1169,7 @@ static opcode_t opcode_jump_table[] = {
 	[0x6D] = NULL,
 	[0x6E] = NULL,
 	[0x6F] = NULL,
-	[0x70] = NULL,
+	[0x70] = branch,
 	[0x71] = NULL,
 	[0x72] = NULL,
 	[0x73] = NULL,
@@ -936,7 +1201,7 @@ static opcode_t opcode_jump_table[] = {
 	[0x8D] = store,
 	[0x8E] = store,
 	[0x8F] = NULL,
-	[0x90] = NULL,
+	[0x90] = branch,
 	[0x91] = store,
 	[0x92] = NULL,
 	[0x93] = NULL,
@@ -968,7 +1233,7 @@ static opcode_t opcode_jump_table[] = {
 	[0xAD] = NULL,
 	[0xAE] = NULL,
 	[0xAF] = NULL,
-	[0xB0] = NULL,
+	[0xB0] = branch,
 	[0xB1] = NULL,
 	[0xB2] = NULL,
 	[0xB3] = NULL,
@@ -1000,7 +1265,7 @@ static opcode_t opcode_jump_table[] = {
 	[0xCD] = NULL,
 	[0xCE] = NULL,
 	[0xCF] = NULL,
-	[0xD0] = NULL,
+	[0xD0] = branch,
     [0xD1] = NULL,
     [0xD2] = NULL,
     [0xD3] = NULL,
@@ -1032,7 +1297,7 @@ static opcode_t opcode_jump_table[] = {
 	[0xED] = NULL,
 	[0xEE] = NULL,
 	[0xEF] = NULL,
-	[0xF0] = NULL,
+	[0xF0] = branch,
 	[0xF1] = NULL,
 	[0xF2] = NULL,
 	[0xF3] = NULL,

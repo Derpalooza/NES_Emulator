@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #include "memory.h"
 #include "cpu.h"
@@ -47,6 +48,6 @@ int main(int argc, char *argv[])
             printf("Failed to execute CPU cycle\n");
             break;
         }
-        usleep(125000);
+        usleep(5000);
     }
 }
