@@ -5,32 +5,40 @@
 
 #include "cpu.h"
 
-// Register identifiers (Obtained from opcode bits 0-1)
-#define CPU_REGISTER_Y		0x0
-#define CPU_REGISTER_A		0x1
-#define CPU_REGISTER_X		0x2
+typedef enum
+{
+    CPU_ADDR_MODE_INDIRECT_X = 0,
+    CPU_ADDR_MODE_ZEROPAGE,
+    CPU_ADDR_MODE_IMMEDIATE,
+    CPU_ADDR_MODE_ABSOLUTE,
+    CPU_ADDR_MODE_INDIRECT_Y,
+    CPU_ADDR_MODE_ZERO_PAGE_IDX,
+    CPU_ADDR_MODE_ABSOLUTE_Y,
+    CPU_ADDR_MODE_ABSOLUTE_X,
+    CPU_ADDR_MODE_IMPLIED,
+    CPU_ADDR_MODE_RELATIVE,
+    NUM_CPU_ADDR_MODES
+} cpu_addr_mode_t;
 
-// Addressing mode identifiers (Obtained from opcode bits 2-4)
-#define CPU_ADDR_MODE_INDIRECT_X		0x0
-#define CPU_ADDR_MODE_ZEROPAGE			0x1
-#define CPU_ADDR_MODE_IMMEDIATE			0x2
-#define CPU_ADDR_MODE_ABSOLUTE			0x3
-#define CPU_ADDR_MODE_INDIRECT_Y		0x4
-#define CPU_ADDR_MODE_ZERO_PAGE_IDX		0x5
-#define CPU_ADDR_MODE_ABSOLUTE_Y		0x6
-#define CPU_ADDR_MODE_ABSOLUTE_X		0x7
-#define CPU_ADDR_MODE_IMPLIED           0x8
-#define CPU_ADDR_MODE_RELATIVE          0x9
+typedef enum
+{
+    CPU_REGISTER_A = 0,
+    CPU_REGISTER_X,
+    CPU_REGISTER_Y,
+} cpu_register_t;
 
 // Populates source register with contents of destination register, and sets status bits
 // Registers MUST be set through this function. They must not be modified directly
+// TODO: Use cpu_register_t instead of dst
 void cpu_set_register(cpu_t* cpu, uint8_t* dst, uint8_t src);
 
 
 // Pure helper functions
 
 // Obtain the addressing mode of the given opcode and returns a CPU_ADDR_MODE_* macro
-uint8_t cpu_get_opcode_addressing_mode(uint8_t opcode);
+cpu_addr_mode_t cpu_get_opcode_addressing_mode(uint8_t opcode);
+
+status_t cpu_get_opcode_register(uint8_t opcode, cpu_register_t* reg);
 
 // Obtain the target register of the given opcode and returns a CPU_REGISTER_* macro
 uint8_t cpu_get_target_register(uint8_t opcode);

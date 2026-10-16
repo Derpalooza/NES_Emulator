@@ -34,21 +34,7 @@ status_t get_operand_immediate(cpu_t* cpu, Memory_t* memory)
 		case 0:
 		{
 			cpu->PC++;
-			break;
-		}
-		case 1:
-		{
-			// Read operand byte
-			uint8_t operand_byte = 0;
-			status = memory_read_byte(memory, cpu->PC, &operand_byte);
-			if (status != STATUS_SUCCESS)
-			{
-				printf("memory_read_byte failed with error %d\n", status);
-				return status;
-			}
-			
-			cpu->operand = operand_byte;
-			cpu->PC++;
+			cpu->effective_address = cpu->PC;
 			status = STATUS_SUCCESS;
 			break;
 		}
@@ -71,26 +57,26 @@ status_t get_operand_absolute(cpu_t* cpu, Memory_t* memory)
 			status = STATUS_INPROGRESS;
 			break;
 		case 1:
-			// Read lower byte of operand
+			// Read lower byte of effective address
 			status = memory_read_byte(memory, cpu->PC, &operand_byte);
 			if (status != STATUS_SUCCESS)
 			{
 				printf("memory_read_byte failed with error %d\n", status);
 				return status;
 			}
-			cpu->operand = operand_byte;
+			cpu->effective_address = operand_byte;
 			cpu->PC++;
 			status = STATUS_INPROGRESS;
 			break;
 		case 2:
-			// Read upper byte of operand
+			// Read upper byte of effective address
 			status = memory_read_byte(memory, cpu->PC, &operand_byte);
 			if (status != STATUS_SUCCESS)
 			{
 				printf("memory_read_byte failed with error %d\n", status);
 				return status;
 			}
-			cpu->operand |= (operand_byte << 8);
+			cpu->effective_address |= (operand_byte << 8);
 			cpu->PC++;
 			status = STATUS_SUCCESS;
 			break;
@@ -123,22 +109,8 @@ status_t get_operand_zero_page(cpu_t* cpu, Memory_t* memory)
 				return status;
 			}
 			
-			cpu->operand = zp_addr;
+			cpu->effective_address = zp_addr;
 			cpu->PC++;
-			break;
-		}
-		case 2:
-		{
-			// Obtain operand
-			uint8_t zp_addr = (cpu->operand & 0xFF);
-			uint8_t operand_byte = 0;
-			status = memory_read_byte(memory, zp_addr, &operand_byte);
-			if (status != STATUS_SUCCESS)
-			{
-				printf("memory_read_byte failed with error %d\n", status);
-				return status;
-			}
-			cpu->operand = operand_byte;
 			status = STATUS_SUCCESS;
 			break;
 		}
@@ -398,12 +370,10 @@ status_t get_operand_indirect_Y(cpu_t* cpu, Memory_t* memory)
     return status;
 }
 
-status_t get_operand(cpu_t* cpu, Memory_t* memory)
+status_t get_operand(cpu_t* cpu, Memory_t* memory, cpu_addr_mode_t addr_mode)
 {
 	status_t status = STATUS_SUCCESS;
 
-	uint8_t addr_mode = cpu_get_opcode_addressing_mode(cpu->current_opcode);
-	
 	switch (addr_mode)
 	{
 		case CPU_ADDR_MODE_IMMEDIATE:
@@ -517,8 +487,8 @@ status_t jmp_absolute(cpu_t* cpu, Memory_t* memory)
             switch (status)
             {
                 case STATUS_SUCCESS:
-					cpu_print_instruction(cpu->operand, "JMP", CPU_ADDR_MODE_ABSOLUTE);
-                    cpu->PC = cpu->operand;
+					cpu_print_instruction(cpu->effective_address, "JMP", CPU_ADDR_MODE_ABSOLUTE);
+                    cpu->PC = cpu->effective_address;
                     cpu->state = CPU_STATE_FETCH;
                     break;
                 case STATUS_INPROGRESS:
@@ -541,8 +511,14 @@ status_t store(cpu_t* cpu, Memory_t* memory)
 {
     status_t status = STATUS_SUCCESS;
 	
-	// Target register is contianed in lower 3 bytes of opcode (Y = 00, X = 10, A = 01)
-	uint8_t target_register = cpu->current_opcode & 0x3;
+	cpu_register_t target_register;
+	status = cpu_get_opcode_register(cpu->current_opcode, &target_register);
+	if (status != STATUS_SUCCESS)
+	{
+		printf("cpu_get_opcode_register failed (status = %d)", status);
+		return status;
+	}
+	
 	uint8_t* reg = NULL;
 	switch (target_register)
 	{
@@ -560,10 +536,12 @@ status_t store(cpu_t* cpu, Memory_t* memory)
 			return STATUS_EINVALIDPARAMS;
 	}
 
+	cpu_addr_mode_t addr_mode = cpu_get_opcode_addressing_mode(cpu->current_opcode);
+
     switch (cpu->state)
     {
         case CPU_STATE_FETCH:
-            status = get_operand(cpu, memory);
+            status = get_operand(cpu, memory, addr_mode);
             if (status != STATUS_INPROGRESS)
             {
                 printf("get_operand failed with %d\n", status);
@@ -575,7 +553,7 @@ status_t store(cpu_t* cpu, Memory_t* memory)
             }
             break;
         case CPU_STATE_DECODE:
-            status = get_operand(cpu, memory);
+            status = get_operand(cpu, memory, addr_mode);
             switch (status)
             {
                 case STATUS_SUCCESS:
@@ -589,14 +567,12 @@ status_t store(cpu_t* cpu, Memory_t* memory)
             }
             break;
         case CPU_STATE_EXECUTE:
-            memory_write_byte(memory, cpu->operand, *reg);
+            memory_write_byte(memory, cpu->effective_address, *reg);
 
 			// Print opcode information
 			char instr_name[8] = {};
-			sprintf(instr_name, "ST%s", (target_register == CPU_REGISTER_Y) ? "Y" : (target_register == CPU_REGISTER_A) ? "A" : "X", cpu->operand);
-			uint8_t addr_mode = cpu_get_opcode_addressing_mode(cpu->current_opcode);
-			cpu_print_instruction(cpu->operand, instr_name, addr_mode);
-
+			sprintf(instr_name, "ST%s", (target_register == CPU_REGISTER_Y) ? "Y" : (target_register == CPU_REGISTER_A) ? "A" : "X");
+			cpu_print_instruction(cpu->effective_address, instr_name, addr_mode);
 
             cpu->state = CPU_STATE_FETCH;
             break;
@@ -608,22 +584,28 @@ status_t store(cpu_t* cpu, Memory_t* memory)
     return status;
 }
 
-status_t ld_immediate(cpu_t* cpu, Memory_t* memory)
+status_t load(cpu_t* cpu, Memory_t* memory)
 {
     status_t status = STATUS_SUCCESS;
 
-	// Target register is contianed in lower 3 bytes of opcode (Y = 00, X = 10, A = 01)
-	uint8_t target_register = cpu->current_opcode & 0x3;
+	cpu_register_t target_register;
+	status = cpu_get_opcode_register(cpu->current_opcode, &target_register);
+	if (status != STATUS_SUCCESS)
+	{
+		printf("cpu_get_opcode_register failed (status = %d)", status);
+		return status;
+	}
+
 	uint8_t* reg = NULL;
 	switch (target_register)
 	{
-		case 0:
+		case CPU_REGISTER_Y:
 			reg = &cpu->Y;
 			break;
-		case 1:
+		case CPU_REGISTER_A:
 			reg = &cpu->A;
 			break;
-		case 2:
+		case CPU_REGISTER_X:
 			reg = &cpu->X;
 			break;
 		default:
@@ -631,28 +613,75 @@ status_t ld_immediate(cpu_t* cpu, Memory_t* memory)
 			return STATUS_EINVALIDPARAMS;
 	}
 
-	status = get_operand_immediate(cpu, memory);
+	cpu_addr_mode_t addr_mode = cpu_get_opcode_addressing_mode(cpu->current_opcode);
+
+	if ((addr_mode == CPU_ADDR_MODE_INDIRECT_X) && (target_register != CPU_REGISTER_A))
+	{
+		// The Load X and Y immediate instructions hold "indirect X" as their addressing mode. That
+		// must be corrected here
+		addr_mode = CPU_ADDR_MODE_IMMEDIATE;
+	}
 
     switch (cpu->state)
     {
         case CPU_STATE_FETCH:
-			if (status == STATUS_INPROGRESS)
+		{
+			status_t addr_result = get_operand(cpu, memory, addr_mode);
+
+			switch (addr_result)
 			{
-				cpu->state = CPU_STATE_EXECUTE;
-				status = STATUS_SUCCESS;
+				case STATUS_INPROGRESS:
+					cpu->state = CPU_STATE_DECODE;
+					break;
+				case STATUS_SUCCESS:
+					cpu->state = CPU_STATE_EXECUTE;
+					break;
+				default:
+					printf("get_operand failed with %d\n", addr_result);
+					status = addr_result;
 			}
             break;
+		}
+		case CPU_STATE_DECODE:
+		{
+			status_t addr_result = get_operand(cpu, memory, addr_mode);
+			switch (addr_result)
+			{
+				case STATUS_INPROGRESS:
+					break;
+				case STATUS_SUCCESS:
+					cpu->state = CPU_STATE_EXECUTE;
+					break;
+				default:
+					printf("get_operand failed with %d\n", addr_result);
+					status = addr_result;
+			}
+		}
         case CPU_STATE_EXECUTE:
-			if (status == STATUS_SUCCESS)
+		{
+			uint8_t loaded_byte = 0;
+			status = memory_read_byte(memory, cpu->effective_address, &loaded_byte);
+			if (status != STATUS_SUCCESS)
 			{
-				cpu_set_register(cpu, reg, cpu->operand);
-				printf("LD%s #0x%02x\n\n", (target_register == 0) ? "Y" : (target_register == 1) ? "A" : "X", *reg);
-                cpu->state = CPU_STATE_FETCH;
+				printf("memory_read_byte failed with error %d", status);
+				return status;
 			}
+			cpu_set_register(cpu, reg, loaded_byte);
+			
+			// Print opcode information
+			char instr_name[8] = {};
+			sprintf(instr_name, "LD%s", (target_register == CPU_REGISTER_Y) ? "Y" : (target_register == CPU_REGISTER_A) ? "A" : "X");
+			cpu_print_instruction(loaded_byte, instr_name, addr_mode);
+
+            cpu->state = CPU_STATE_FETCH;
+			cpu->PC++;
             break;
+		}
         default:
+		{
             printf("CPU state %d is invalid for opcode 0x%02x\n", cpu->state, cpu->current_opcode);
             status = STATUS_EINVALIDPARAMS;
+		}
     }
 
     return status;
@@ -759,7 +788,7 @@ status_t jump_to_subroutine(cpu_t* cpu, Memory_t* memory)
 			status = memory_read_byte(memory, cpu->PC, &low_addr_byte);
 			if (status != STATUS_SUCCESS)
 			{
-				printf("memory_write_byte failed with error %d", status);
+				printf("memory_read_byte failed with error %d", status);
 				return status;
 			}
 			cpu->operand = low_addr_byte;
@@ -1024,6 +1053,7 @@ status_t branch(cpu_t* cpu, Memory_t* memory)
 	return status;
 }
 
+/*
 status_t increment(cpu_t* cpu, Memory_t* memory)
 {
 	status_t status = STATUS_SUCCESS;
@@ -1055,6 +1085,7 @@ status_t increment(cpu_t* cpu, Memory_t* memory)
     
     return status;
 }
+	*/
 
 static opcode_t opcode_jump_table[] = {
 	[0x00] = NULL,
@@ -1217,16 +1248,16 @@ static opcode_t opcode_jump_table[] = {
 	[0x9D] = store,
 	[0x9E] = NULL,
 	[0x9F] = NULL,
-	[0xA0] = ld_immediate,
+	[0xA0] = load,
 	[0xA1] = NULL,
-	[0xA2] = ld_immediate,
+	[0xA2] = load,
 	[0xA3] = NULL,
 	[0xA4] = NULL,
 	[0xA5] = NULL,
 	[0xA6] = NULL,
 	[0xA7] = NULL,
 	[0xA8] = transfer_register,
-	[0xA9] = ld_immediate,
+	[0xA9] = load,
 	[0xAA] = transfer_register,
 	[0xAB] = NULL,
 	[0xAC] = NULL,

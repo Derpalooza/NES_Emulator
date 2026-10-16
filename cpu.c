@@ -94,5 +94,10 @@ status_t cpu_execute_cycle(cpu_t* cpu, Memory_t* memory)
     
     cpu->cycle_count++;
     cpu->current_opcode_cycles++;
+
+    if (cpu->state == CPU_STATE_FETCH)
+    {
+        printf("Took %d cycles\n\n");
+    }
     return 0;
 }

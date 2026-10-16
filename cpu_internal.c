@@ -36,11 +36,46 @@ void cpu_set_register(cpu_t* cpu, uint8_t* dst, uint8_t src)
     *dst = src;
 }
 
-uint8_t cpu_get_opcode_addressing_mode(uint8_t opcode)
+cpu_addr_mode_t cpu_get_opcode_addressing_mode(uint8_t opcode)
 {
     // Obtain the addressing mode from bits 2-4 in the opcode
 	uint8_t addr_mode = (opcode >> 2) & 0x7;
-    return addr_mode;
+
+    switch (addr_mode)
+    {
+        case 0x0: return CPU_ADDR_MODE_INDIRECT_X;
+        case 0x1: return CPU_ADDR_MODE_ZEROPAGE;
+        case 0x2: return CPU_ADDR_MODE_IMMEDIATE;
+        case 0x3: return CPU_ADDR_MODE_ABSOLUTE;
+        case 0x4: return CPU_ADDR_MODE_INDIRECT_Y;
+        case 0x5: return CPU_ADDR_MODE_ZERO_PAGE_IDX;
+        case 0x6: return CPU_ADDR_MODE_ABSOLUTE_Y;
+        case 0x7: return CPU_ADDR_MODE_ABSOLUTE_X;
+    }
+}
+
+status_t cpu_get_opcode_register(uint8_t opcode, cpu_register_t* reg)
+{
+    // Obtain the register from bits 0-1 in the opcode
+	uint8_t target_register = opcode & 0x3;
+
+    switch (target_register)
+    {
+        case 0x0:
+            *reg = CPU_REGISTER_Y;
+            break;
+        case 0x1:
+            *reg = CPU_REGISTER_A;
+            break;
+        case 0x2:
+            *reg = CPU_REGISTER_X;
+            break;
+        default:
+            printf("Invalid register %d for opcode 0x%x", target_register);
+            return STATUS_EINVALIDPARAMS;
+    }
+
+    return STATUS_SUCCESS;
 }
 
 uint8_t cpu_get_target_register(uint8_t opcode)
@@ -112,10 +147,10 @@ void cpu_print_instruction(uint16_t operand, char* instr_name, uint8_t addr_mode
 
     if (addr_mode == CPU_ADDR_MODE_IMPLIED)
     {
-        printf("%s: %s\n\n", addressing_mode, instr_name);
+        printf("%s: %s\n", addressing_mode, instr_name);
     }
     else
     {
-        printf("%s: %s 0x%x\n\n", addressing_mode, instr_name, operand);
+        printf("%s: %s 0x%x\n", addressing_mode, instr_name, operand);
     }
 }

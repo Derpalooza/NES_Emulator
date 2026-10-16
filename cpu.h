@@ -36,6 +36,7 @@ typedef struct
     uint32_t    state;                  // Current point in the opcode state machine
     uint8_t     current_opcode;         // Holds the opcode currently being processed
     uint8_t     current_opcode_cycles;  // Number of cycles that were spent processing the current opcode
+    uint16_t    effective_address;      // Address of the opcode operand
     uint16_t    operand;                // Store operand obtained from opcode
 } cpu_t;
 
