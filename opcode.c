@@ -596,23 +596,6 @@ status_t load(cpu_t* cpu, Memory_t* memory)
 		return status;
 	}
 
-	uint8_t* reg = NULL;
-	switch (target_register)
-	{
-		case CPU_REGISTER_Y:
-			reg = &cpu->Y;
-			break;
-		case CPU_REGISTER_A:
-			reg = &cpu->A;
-			break;
-		case CPU_REGISTER_X:
-			reg = &cpu->X;
-			break;
-		default:
-			printf("Invalid register value\n");
-			return STATUS_EINVALIDPARAMS;
-	}
-
 	cpu_addr_mode_t addr_mode = cpu_get_opcode_addressing_mode(cpu->current_opcode);
 
 	if ((addr_mode == CPU_ADDR_MODE_INDIRECT_X) && (target_register != CPU_REGISTER_A))
@@ -666,7 +649,13 @@ status_t load(cpu_t* cpu, Memory_t* memory)
 				printf("memory_read_byte failed with error %d", status);
 				return status;
 			}
-			cpu_set_register(cpu, reg, loaded_byte);
+
+			status = cpu_set_register(cpu, target_register, loaded_byte);
+			if (status != STATUS_SUCCESS)
+			{
+				printf("cpu_set_register failed with error %d", status);
+				return status;
+			}
 			
 			// Print opcode information
 			char instr_name[8] = {};
@@ -702,52 +691,52 @@ status_t transfer_register(cpu_t* cpu, Memory_t* memory)
 			{
 				case 0xA8:
 					// Transfer Accumulator to Y
-					cpu_set_register(cpu, &cpu->Y, cpu->A);
+					cpu_set_register(cpu, CPU_REGISTER_Y, cpu->A);
 					cpu_print_instruction(cpu->operand, "TAY", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0xAA:
 					// Transfer Accumulator to X
-					cpu_set_register(cpu, &cpu->X, cpu->A);
+					cpu_set_register(cpu, CPU_REGISTER_X, cpu->A);
 					cpu_print_instruction(cpu->operand, "TAX", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0xBA:
 					// Transfer Stack pointer to X
-					cpu_set_register(cpu, &cpu->X, cpu->SP);
+					cpu_set_register(cpu, CPU_REGISTER_X, cpu->SP);
 					cpu_print_instruction(cpu->operand, "TSX", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0x98:
 					// Transfer Y to Accumulator
-					cpu_set_register(cpu, &cpu->A, cpu->Y);
+					cpu_set_register(cpu, CPU_REGISTER_A, cpu->Y);
 					cpu_print_instruction(cpu->operand, "TYA", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0x8A:
 					// Transfer X to Accumulator
-					cpu_set_register(cpu, &cpu->A, cpu->X);
+					cpu_set_register(cpu, CPU_REGISTER_A, cpu->X);
 					cpu_print_instruction(cpu->operand, "TXA", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0x9A:
 					// Transfer X to Stack pointer
-					cpu_set_register(cpu, &cpu->SP, cpu->X);
+					cpu_set_register(cpu, CPU_REGISTER_SP, cpu->X);
 					cpu_print_instruction(cpu->operand, "TXS", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0xE8:
 					// Increment X
-					cpu_set_register(cpu, &cpu->X, cpu->X + 1);
+					cpu_set_register(cpu, CPU_REGISTER_X, cpu->X + 1);
 					cpu_print_instruction(cpu->operand, "INX", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0xC8:
 					// Increment Y
-					cpu_set_register(cpu, &cpu->Y, cpu->Y + 1);
+					cpu_set_register(cpu, CPU_REGISTER_Y, cpu->Y + 1);
 					cpu_print_instruction(cpu->operand, "INY", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0xCA:
-					// Increment Y
-					cpu_set_register(cpu, &cpu->X, cpu->X - 1);
+					// Decrement X
+					cpu_set_register(cpu, CPU_REGISTER_X, cpu->X - 1);
 					cpu_print_instruction(cpu->operand, "DEX", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0x88:
-					// Increment Y
-					cpu_set_register(cpu, &cpu->Y, cpu->Y - 1);
+					// Decrement Y
+					cpu_set_register(cpu, CPU_REGISTER_Y, cpu->Y - 1);
 					cpu_print_instruction(cpu->operand, "DEY", CPU_ADDR_MODE_IMPLIED);
 					break;
 				default:

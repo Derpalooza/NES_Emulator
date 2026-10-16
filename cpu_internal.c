@@ -28,12 +28,38 @@ static void check_status_negative_flag(cpu_t* cpu, uint8_t data)
     }
 }
 
-void cpu_set_register(cpu_t* cpu, uint8_t* dst, uint8_t src)
+status_t cpu_set_register(cpu_t* cpu, cpu_register_t reg, uint8_t src)
 {
-    check_status_zero_flag(cpu, src);
-    check_status_negative_flag(cpu, src);
+    if (reg >= NUM_CPU_REGISTERS)
+    {
+        printf("Invalid register %d\n", reg);
+        return STATUS_EINVALIDPARAMS;
+    }
 
-    *dst = src;
+    if (reg != CPU_REGISTER_SP)
+    {
+        // The status bits are not sensitive to writes to the stack pointer
+        check_status_zero_flag(cpu, src);
+        check_status_negative_flag(cpu, src);
+    }
+
+	switch (reg)
+	{
+		case CPU_REGISTER_Y:
+			cpu->Y = src;
+			break;
+		case CPU_REGISTER_A:
+			cpu->A = src;
+			break;
+		case CPU_REGISTER_X:
+			cpu->X = src;
+			break;
+        case CPU_REGISTER_SP:
+            cpu->SP = src;
+            break;
+	}
+
+    return STATUS_SUCCESS;
 }
 
 cpu_addr_mode_t cpu_get_opcode_addressing_mode(uint8_t opcode)

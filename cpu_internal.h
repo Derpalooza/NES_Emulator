@@ -25,12 +25,13 @@ typedef enum
     CPU_REGISTER_A = 0,
     CPU_REGISTER_X,
     CPU_REGISTER_Y,
+    CPU_REGISTER_SP,
+    NUM_CPU_REGISTERS
 } cpu_register_t;
 
 // Populates source register with contents of destination register, and sets status bits
 // Registers MUST be set through this function. They must not be modified directly
-// TODO: Use cpu_register_t instead of dst
-void cpu_set_register(cpu_t* cpu, uint8_t* dst, uint8_t src);
+status_t cpu_set_register(cpu_t* cpu, cpu_register_t reg, uint8_t src);
 
 
 // Pure helper functions
