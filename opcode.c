@@ -184,75 +184,70 @@ status_t get_operand_indirect_X(cpu_t* cpu, Memory_t* memory)
 {
     status_t status = STATUS_INPROGRESS;
 	
-	// Maintin indirect address as static variable. Since this only
-	// exists over the course of the instruction, keep it as a static
-	// var instead of adding new cpu_t field
-	static uint16_t operand_addr = 0x0;
-	
 	switch (cpu->current_opcode_cycles)
 	{
 		case 0:
 			cpu->PC++;
-			operand_addr = 0;
 			break;
 		case 1:
 		{
 			// Obtain zero page address
 			uint8_t zp_addr = 0;
-			status = memory_read_byte(memory, cpu->PC, &zp_addr);
-			if (status != STATUS_SUCCESS)
+			status_t status_mem = memory_read_byte(memory, cpu->PC, &zp_addr);
+			if (status_mem != STATUS_SUCCESS)
 			{
-				printf("memory_read_byte failed with error %d\n", status);
-				return status;
+				printf("memory_read_byte failed with error %d\n", status_mem);
+				return status_mem;
 			}
 			
-			operand_addr = zp_addr;
+			cpu->operand = zp_addr;
 			cpu->PC++;
 			break;
 		}
 		case 2:
 		{
-			// Dummy read from operand_addr
+			// Initiate dummy read on initial zero page address and discard results
 			uint8_t operand_byte = 0;
-			status = memory_read_byte(memory, operand_addr, &operand_byte);
-			if (status != STATUS_SUCCESS)
+			status_t status_mem = memory_read_byte(memory, cpu->operand, &operand_byte);
+			if (status_mem != STATUS_SUCCESS)
 			{
-				printf("memory_read_byte failed with error %d\n", status);
-				return status;
+				printf("memory_read_byte failed with error %d\n", status_mem);
+				return status_mem;
 			}
 			
-			// Add X to operand_addr (The effective address
-			// is always fetched from zero page, so no need to handle
-			// page crossing)
-			operand_addr = (operand_addr + cpu->X) & 0xFF;
+			// Add X to operand_addr. In indirect X mode, we look in zero page, so
+			// the address will just wrap around if an overflow happens. This means no page fault will
+			// happen
+			cpu->operand = (cpu->operand + cpu->X) & 0xFF;
 			break;
 		}
 		case 3:
 		{
 			// Get low bit of effective address
 			uint8_t operand_byte = 0;
-			status = memory_read_byte(memory, operand_addr, &operand_byte);
-			if (status != STATUS_SUCCESS)
+			status_t status_mem = memory_read_byte(memory, cpu->operand, &operand_byte);
+			if (status_mem != STATUS_SUCCESS)
 			{
-				printf("memory_read_byte failed with error %d\n", status);
-				return status;
+				printf("memory_read_byte failed with error %d\n", status_mem);
+				return status_mem;
 			}
 			
-			cpu->operand = operand_byte & 0xFF;
+			cpu->effective_address = operand_byte & 0xFF;
+			cpu->operand = (cpu->operand + 1) & 0xFF;
 			break;
 		}
 		case 4:
 		{
 			// Get high bit of effective address
 			uint8_t operand_byte = 0;
-			status = memory_read_byte(memory, operand_addr, &operand_byte);
-			if (status != STATUS_SUCCESS)
+			status_t status_mem = memory_read_byte(memory, cpu->operand, &operand_byte);
+			if (status_mem != STATUS_SUCCESS)
 			{
-				printf("memory_read_byte failed with error %d\n", status);
-				return status;
+				printf("memory_read_byte failed with error %d\n", status_mem);
+				return status_mem;
 			}
 			
-			cpu->operand |= (operand_byte << 8);
+			cpu->effective_address |= ((operand_byte << 8) & 0xFF00);
 			status = STATUS_SUCCESS;
 			break;
 		}
@@ -266,31 +261,23 @@ status_t get_operand_indirect_Y(cpu_t* cpu, Memory_t* memory)
 	// TODO: Still not ready. Takes wrong amount of cycles
     status_t status = STATUS_INPROGRESS;
 	
-	// Maintin indirect address as static variable. Since this only
-	// exists over the course of the instruction, keep it as a static
-	// var instead of adding new cpu_t field
-	static uint16_t operand_addr = 0x0;
-	static bool page_crossing = false;
-	
 	switch (cpu->current_opcode_cycles)
 	{
 		case 0:
 			cpu->PC++;
-			operand_addr = 0;
-			page_crossing = false;
 			break;
 		case 1:
 		{
 			// Obtain zero page address
 			uint8_t zp_addr = 0;
-			status = memory_read_byte(memory, cpu->PC, &zp_addr);
-			if (status != STATUS_SUCCESS)
+			status_t status_mem = memory_read_byte(memory, cpu->PC, &zp_addr);
+			if (status_mem != STATUS_SUCCESS)
 			{
-				printf("memory_read_byte failed with error %d\n", status);
-				return status;
+				printf("memory_read_byte failed with error %d\n", status_mem);
+				return status_mem;
 			}
 			
-			operand_addr = zp_addr;
+			cpu->operand = zp_addr;
 			cpu->PC++;
 			break;
 		}
@@ -298,71 +285,62 @@ status_t get_operand_indirect_Y(cpu_t* cpu, Memory_t* memory)
 		{
 			// Fetch low byte of effective address
 			uint8_t operand_byte = 0;
-			status = memory_read_byte(memory, operand_addr, &operand_byte);
-			if (status != STATUS_SUCCESS)
+			status_t status_mem = memory_read_byte(memory, cpu->operand, &operand_byte);
+			if (status_mem != STATUS_SUCCESS)
 			{
-				printf("memory_read_byte failed with error %d\n", status);
-				return status;
+				printf("memory_read_byte failed with error %d\n", status_mem);
+				return status_mem;
 			}
 			
-			cpu->operand = (operand_byte & 0xFF);
-			operand_addr++;
+			cpu->effective_address = (operand_byte & 0xFF);
+
+			// The effective address is stored in the zero page, so make sure it wraps around
+			cpu->operand = (cpu->operand + 1) & 0xFF;
 			break;
 		}
 		case 3:
 		{
-			// Get high byte of effective address
-			uint8_t operand_byte = 0;
-			status = memory_read_byte(memory, operand_addr, &operand_byte);
-			if (status != STATUS_SUCCESS)
+			// Fetch high byte of effective address
+			uint8_t high_byte = 0;
+			status_t status_mem = memory_read_byte(memory, cpu->operand, &high_byte);
+			if (status_mem != STATUS_SUCCESS)
 			{
-				printf("memory_read_byte failed with error %d\n", status);
-				return status;
+				printf("memory_read_byte failed with error %d\n", status_mem);
+				return status_mem;
 			}
 			
-			// Add Y to low byte of effective address. If a page crossing occurs, erase
-			// the additional high byte
-			cpu->operand += cpu->Y;		
-			if (cpu->operand > 0xFF)
+			// Construct effective address
+			uint16_t effective_address = (high_byte << 8) | (cpu->effective_address & 0xFF);
+			effective_address += cpu->Y;
+
+			// Compare high byte of effective address to the high byte we just fetched to determine if a page
+			// fault occurred
+			cpu->operand = (effective_address >> 8) & 0xFF;
+			if (cpu->operand != high_byte)
 			{
-				page_crossing = true;
-				cpu->operand &= 0xFF;
+				// A page fault has occured. Save the high byte to apply in the next cycle
+				cpu->effective_address = (effective_address & 0xFF) | (high_byte << 8);
 			}
-			
-			// Place high byte in effective address
-			cpu->operand = (operand_byte << 8);
+			else
+			{
+				cpu->effective_address = effective_address;
+				return STATUS_SUCCESS;
+			}
 			break;
 		}
 		default:
 		{
 			// Read from effective address
 			uint8_t operand_byte = 0;
-			status = memory_read_byte(memory, cpu->operand, &operand_byte);
+			status = memory_read_byte(memory, cpu->effective_address, &operand_byte);
 			if (status != STATUS_SUCCESS)
 			{
 				printf("memory_read_byte failed with error %d\n", status);
 				return status;
 			}
 			
-			// If a page fault occured in the previous cycle, fix the high byte
-			if (page_crossing)
-			{
-				// Extract and increment high byte
-				uint8_t high_byte = (cpu->operand >> 8) & 0xFF;
-				high_byte++;
-				
-				// Clear high byte
-				cpu->operand &= 0xFF;
-				
-				// Replace high byte
-				cpu->operand |= high_byte;
-				
-				page_crossing = false;
-			}
-			else
-			{
-				status = STATUS_SUCCESS;
-			}
+			// A page fault occurred in the last cycle. So reapply the saved high byte
+			cpu->effective_address = (cpu->effective_address & 0xFF) | (cpu->operand << 8);
 			break;
 		}
 	}
