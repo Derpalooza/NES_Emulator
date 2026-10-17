@@ -62,6 +62,16 @@ status_t cpu_set_register(cpu_t* cpu, cpu_register_t reg, uint8_t src)
     return STATUS_SUCCESS;
 }
 
+uint8_t cpu_add_data(cpu_t* cpu, uint8_t A, uint8_t B)
+{
+    uint8_t result = (uint8_t)A + (uint8_t)B;
+
+    check_status_zero_flag(cpu, result);
+    check_status_negative_flag(cpu, result);
+
+    return result;
+}
+
 cpu_addr_mode_t cpu_get_opcode_addressing_mode(uint8_t opcode)
 {
     // Obtain the addressing mode from bits 2-4 in the opcode

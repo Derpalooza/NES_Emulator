@@ -13,11 +13,16 @@
 #define STATUS_OVERFLOW_MASK                (1 << 6)
 #define STATUS_NEGATIVE_MASK                (1 << 7)
 
+// TODO: The DECODE state doesn't actually do any decoding. We just fetch the effective addresses from the
+//       instruciton operand, making it really a fetch operation. Our actual FETCH state functions more like an
+//       idle state. Rename DECODE->FETCH and FETCH->IDLE
 typedef enum
 {
-    CPU_STATE_FETCH = 0,            // Waiting to fetch new instruction
-    CPU_STATE_DECODE,               // Decoding remianing operands
-    CPU_STATE_EXECUTE,              // Executing instruction logic
+    CPU_STATE_FETCH = 0,            // CPU is idle and Waiting to fetch new instruction
+    CPU_STATE_DECODE,               // CPU is currently fetching operand addresses
+    CPU_STATE_READ,                 // CPU is reading operand
+    CPU_STATE_EXECUTE,              // CPU is executing instruction logic (Represents modify stage for read-modify-write instructions)
+    CPU_STATE_WRITE,                // CPU is writing to memory
     NUM_CPU_STATES
 } cpu_state_t;
 

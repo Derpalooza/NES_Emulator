@@ -33,6 +33,8 @@ typedef enum
 // Registers MUST be set through this function. They must not be modified directly
 status_t cpu_set_register(cpu_t* cpu, cpu_register_t reg, uint8_t src);
 
+// Arithmetic functions. Will also handle status bits internally
+uint8_t cpu_add_data(cpu_t* cpu, uint8_t A, uint8_t B);
 
 // Pure helper functions
 

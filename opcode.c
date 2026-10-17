@@ -1020,39 +1020,80 @@ status_t branch(cpu_t* cpu, Memory_t* memory)
 	return status;
 }
 
-/*
 status_t increment(cpu_t* cpu, Memory_t* memory)
 {
 	status_t status = STATUS_SUCCESS;
 
+	cpu_addr_mode_t addr_mode = cpu_get_opcode_addressing_mode(cpu->current_opcode);
+
 	switch (cpu->state)
     {
         case CPU_STATE_FETCH:
-				cpu->state = CPU_STATE_DECODE;
+		{	
+			cpu->state = CPU_STATE_DECODE;
 			break;
+		}
 		case CPU_STATE_DECODE:
-            status = get_operand(cpu, memory);
+		{
+            status = get_operand(cpu, memory, addr_mode);
 			if (status == STATUS_SUCCESS)
 			{
-				cpu->state = CPU_STATE_EXECUTE;
-				
+				cpu->state = CPU_STATE_READ;
 			}
             break;
+		}
+		case CPU_STATE_READ:
+		{
+			// Read from the effective address
+			uint8_t value = 0;
+			status = memory_read_byte(memory, cpu->effective_address, &value);
+			if (status != STATUS_SUCCESS)
+			{
+				printf("memory_read_byte failed with status %d", status);
+				break;
+			}
+
+			cpu->operand = value;
+			cpu->state = CPU_STATE_EXECUTE;
+			break;
+		}
         case CPU_STATE_EXECUTE:
 		{
 			// This is a read-modify-write instruction. Must perform a dummy write of the operand
 			// to the effective address before modifying the operand
+			status = memory_write_byte(memory, cpu->effective_address, cpu->operand);
+			if (status != STATUS_SUCCESS)
+			{
+				printf("memory_read_byte failed with status %d", status);
+				break;
+			}
+			cpu->operand = cpu_add_data(cpu, cpu->operand, 1);
+			cpu->state = CPU_STATE_WRITE;
+			break;
+		}
+		case CPU_STATE_WRITE:
+		{
+			// Write the newly incremented value to memory
+			status = memory_write_byte(memory, cpu->effective_address, cpu->operand);
+			if (status != STATUS_SUCCESS)
+			{
+				printf("memory_read_byte failed with status %d", status);
+				break;
+			}
+
+			// Print instruction			
+			cpu_print_instruction(cpu->operand, "INC", addr_mode);
+			cpu->state = CPU_STATE_FETCH;
 			break;
 		}
 		default:
-			printf("Exceeded number of cycles (%d cycles) for this addressing mode\n", cpu->current_opcode_cycles);
-			status = STATUS_EINVALIDPARAMS;
+			printf("CPU state %d is invalid for opcode 0x%02x\n", cpu->state, cpu->current_opcode);
+            status = STATUS_EINVALIDPARAMS;
 			break;
 	}
     
     return status;
 }
-	*/
 
 static opcode_t opcode_jump_table[] = {
 	[0x00] = NULL,
@@ -1285,7 +1326,7 @@ static opcode_t opcode_jump_table[] = {
 	[0xE3] = NULL,
 	[0xE4] = NULL,
 	[0xE5] = NULL,
-	[0xE6] = NULL,
+	[0xE6] = increment,
 	[0xE7] = NULL,
 	[0xE8] = transfer_register,
 	[0xE9] = NULL,
@@ -1293,7 +1334,7 @@ static opcode_t opcode_jump_table[] = {
 	[0xEB] = NULL,
 	[0xEC] = NULL,
 	[0xED] = NULL,
-	[0xEE] = NULL,
+	[0xEE] = increment,
 	[0xEF] = NULL,
 	[0xF0] = branch,
 	[0xF1] = NULL,
@@ -1301,7 +1342,7 @@ static opcode_t opcode_jump_table[] = {
 	[0xF3] = NULL,
 	[0xF4] = NULL,
 	[0xF5] = NULL,
-	[0xF6] = NULL,
+	[0xF6] = increment,
 	[0xF7] = NULL,
 	[0xF8] = proc_flag_set_clear,
 	[0xF9] = NULL,
@@ -1309,7 +1350,7 @@ static opcode_t opcode_jump_table[] = {
 	[0xFB] = NULL,
 	[0xFC] = NULL,
 	[0xFD] = NULL,
-	[0xFE] = NULL,
+	[0xFE] = increment,
 	[0xFF] = NULL,
 };
 
