@@ -1031,6 +1031,16 @@ status_t increment(cpu_t* cpu, Memory_t* memory)
         case CPU_STATE_FETCH:
 		{	
 			cpu->state = CPU_STATE_DECODE;
+			status_t operand_status = get_operand(cpu, memory, addr_mode);
+			if (operand_status == STATUS_INPROGRESS)
+			{
+				cpu->state = CPU_STATE_DECODE;
+			}
+			else
+			{
+				printf("Invalid get_operand result (rc = %d)", operand_status);
+				status = STATUS_EFAILURE;
+			}
 			break;
 		}
 		case CPU_STATE_DECODE:
