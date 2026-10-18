@@ -32,8 +32,9 @@ status_t cpu_init(cpu_t* cpu, Memory_t* memory)
         return status;
     }
 
+    cpu->PC.bytes.high_byte = start_addr_upper;
+    cpu->PC.bytes.low_byte = start_addr_lower;
 
-    cpu->PC = (start_addr_upper << 8) | start_addr_lower;
     printf("Reset address == 0x%x\n", cpu->PC);
 
     cpu->SP = STACK_POINTER_RESET;
@@ -63,7 +64,7 @@ status_t cpu_execute_cycle(cpu_t* cpu, Memory_t* memory)
     if (cpu->state == CPU_STATE_FETCH)
     {
         // Grab and save the next opcode
-        status = memory_read_byte(memory, cpu->PC, &cpu->current_opcode);
+        status = memory_read_byte(memory, cpu->PC.addr, &cpu->current_opcode);
         if (status != STATUS_SUCCESS)
         {
             printf("memory_read_byte failed with status = %d\n", status);

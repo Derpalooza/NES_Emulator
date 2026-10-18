@@ -26,10 +26,20 @@ typedef enum
     NUM_CPU_STATES
 } cpu_state_t;
 
+typedef union
+{
+    uint16_t addr;
+    struct
+    {
+        uint8_t low_byte;
+        uint8_t high_byte;
+    } bytes;
+} cpu_addr_t;
+
 typedef struct
 {
     // Registers
-    uint16_t    PC;     // Program Counter
+    cpu_addr_t  PC;     // Program Counter
     uint8_t     SP;     // Stack Pointer
     uint8_t     A;      // Accumulator Register
     uint8_t     X;      // Index Regster X
@@ -41,7 +51,7 @@ typedef struct
     uint32_t    state;                  // Current point in the opcode state machine
     uint8_t     current_opcode;         // Holds the opcode currently being processed
     uint8_t     current_opcode_cycles;  // Number of cycles that were spent processing the current opcode
-    uint16_t    effective_address;      // Address of the opcode operand
+    cpu_addr_t  effective_address;      // Address of the opcode operand
     uint16_t    operand;                // Store operand obtained from opcode
 } cpu_t;
 
