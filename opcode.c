@@ -504,31 +504,31 @@ status_t proc_flag_set_clear(cpu_t* cpu, Memory_t* memory)
             {
                 case 0x18:
                     cpu->P &= ~STATUS_CARRY_FLAG_MASK;
-					cpu_print_instruction(cpu->operand, "CLC", CPU_ADDR_MODE_IMPLIED);
+					cpu_print_instruction(cpu->PC.addr, cpu->operand, "CLC", CPU_ADDR_MODE_IMPLIED);
                     break;
                 case 0x38:
                     cpu->P |= STATUS_CARRY_FLAG_MASK;
-					cpu_print_instruction(cpu->operand, "CLC", CPU_ADDR_MODE_IMPLIED);
+					cpu_print_instruction(cpu->PC.addr, cpu->operand, "CLC", CPU_ADDR_MODE_IMPLIED);
                     break;
                 case 0x58:
                     cpu->P &= ~STATUS_INTERRUPT_DISABLE_MASK;
-					cpu_print_instruction(cpu->operand, "CLI", CPU_ADDR_MODE_IMPLIED);
+					cpu_print_instruction(cpu->PC.addr, cpu->operand, "CLI", CPU_ADDR_MODE_IMPLIED);
                     break;
                 case 0x78:
                     cpu->P |= STATUS_INTERRUPT_DISABLE_MASK;
-					cpu_print_instruction(cpu->operand, "SEI", CPU_ADDR_MODE_IMPLIED);
+					cpu_print_instruction(cpu->PC.addr, cpu->operand, "SEI", CPU_ADDR_MODE_IMPLIED);
                     break;
                 case 0xB8:
                     cpu->P &= ~STATUS_OVERFLOW_MASK;
-					cpu_print_instruction(cpu->operand, "CLV", CPU_ADDR_MODE_IMPLIED);
+					cpu_print_instruction(cpu->PC.addr, cpu->operand, "CLV", CPU_ADDR_MODE_IMPLIED);
                     break;
                 case 0xD8:
                     cpu->P &= ~STATUS_DECIMAL_MODE_MASK;
-					cpu_print_instruction(cpu->operand, "CLD", CPU_ADDR_MODE_IMPLIED);
+					cpu_print_instruction(cpu->PC.addr, cpu->operand, "CLD", CPU_ADDR_MODE_IMPLIED);
                     break;
                 case 0xF8:
                     cpu->P |= STATUS_DECIMAL_MODE_MASK;
-					cpu_print_instruction(cpu->operand, "SED", CPU_ADDR_MODE_IMPLIED);
+					cpu_print_instruction(cpu->PC.addr, cpu->operand, "SED", CPU_ADDR_MODE_IMPLIED);
                     break;
                 default:
 					printf("Opcode 0x%x is invalid for proc_flag_set_clear\n", cpu->current_opcode);
@@ -566,7 +566,7 @@ status_t jmp_absolute(cpu_t* cpu, Memory_t* memory)
             switch (status)
             {
                 case STATUS_SUCCESS:
-					cpu_print_instruction(cpu->effective_address.addr, "JMP", CPU_ADDR_MODE_ABSOLUTE);
+					cpu_print_instruction(cpu->effective_address.addr, 0, "JMP", CPU_ADDR_MODE_ABSOLUTE);
                     cpu->PC.addr = cpu->effective_address.addr;
                     cpu->state = CPU_STATE_FETCH;
                     break;
@@ -666,7 +666,7 @@ status_t store(cpu_t* cpu, Memory_t* memory)
 			// Print opcode information
 			char instr_name[8] = {};
 			sprintf(instr_name, "ST%s", (target_register == CPU_REGISTER_Y) ? "Y" : (target_register == CPU_REGISTER_A) ? "A" : "X");
-			cpu_print_instruction(cpu->effective_address.addr, instr_name, addr_mode);
+			cpu_print_instruction(cpu->effective_address.addr, *reg, instr_name, addr_mode);
 
             cpu->state = CPU_STATE_FETCH;
             break;
@@ -733,6 +733,7 @@ status_t load(cpu_t* cpu, Memory_t* memory)
 					printf("get_operand failed with %d\n", addr_result);
 					status = addr_result;
 			}
+			break;
 		}
         case CPU_STATE_EXECUTE:
 		{
@@ -754,7 +755,7 @@ status_t load(cpu_t* cpu, Memory_t* memory)
 			// Print opcode information
 			char instr_name[8] = {};
 			sprintf(instr_name, "LD%s", (target_register == CPU_REGISTER_Y) ? "Y" : (target_register == CPU_REGISTER_A) ? "A" : "X");
-			cpu_print_instruction(loaded_byte, instr_name, addr_mode);
+			cpu_print_instruction(cpu->effective_address.addr, loaded_byte, instr_name, addr_mode);
 
             cpu->state = CPU_STATE_FETCH;
 			cpu->PC.addr++;
@@ -786,52 +787,52 @@ status_t transfer_register(cpu_t* cpu, Memory_t* memory)
 				case 0xA8:
 					// Transfer Accumulator to Y
 					cpu_set_register(cpu, CPU_REGISTER_Y, cpu->A);
-					cpu_print_instruction(cpu->operand, "TAY", CPU_ADDR_MODE_IMPLIED);
+					cpu_print_instruction(0, cpu->operand, "TAY", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0xAA:
 					// Transfer Accumulator to X
 					cpu_set_register(cpu, CPU_REGISTER_X, cpu->A);
-					cpu_print_instruction(cpu->operand, "TAX", CPU_ADDR_MODE_IMPLIED);
+					cpu_print_instruction(0, cpu->operand, "TAX", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0xBA:
 					// Transfer Stack pointer to X
 					cpu_set_register(cpu, CPU_REGISTER_X, cpu->SP);
-					cpu_print_instruction(cpu->operand, "TSX", CPU_ADDR_MODE_IMPLIED);
+					cpu_print_instruction(0, cpu->operand, "TSX", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0x98:
 					// Transfer Y to Accumulator
 					cpu_set_register(cpu, CPU_REGISTER_A, cpu->Y);
-					cpu_print_instruction(cpu->operand, "TYA", CPU_ADDR_MODE_IMPLIED);
+					cpu_print_instruction(0, cpu->operand, "TYA", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0x8A:
 					// Transfer X to Accumulator
 					cpu_set_register(cpu, CPU_REGISTER_A, cpu->X);
-					cpu_print_instruction(cpu->operand, "TXA", CPU_ADDR_MODE_IMPLIED);
+					cpu_print_instruction(0, cpu->operand, "TXA", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0x9A:
 					// Transfer X to Stack pointer
 					cpu_set_register(cpu, CPU_REGISTER_SP, cpu->X);
-					cpu_print_instruction(cpu->operand, "TXS", CPU_ADDR_MODE_IMPLIED);
+					cpu_print_instruction(0, cpu->operand, "TXS", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0xE8:
 					// Increment X
 					cpu_set_register(cpu, CPU_REGISTER_X, cpu->X + 1);
-					cpu_print_instruction(cpu->operand, "INX", CPU_ADDR_MODE_IMPLIED);
+					cpu_print_instruction(0, cpu->operand, "INX", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0xC8:
 					// Increment Y
 					cpu_set_register(cpu, CPU_REGISTER_Y, cpu->Y + 1);
-					cpu_print_instruction(cpu->operand, "INY", CPU_ADDR_MODE_IMPLIED);
+					cpu_print_instruction(0, cpu->operand, "INY", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0xCA:
 					// Decrement X
 					cpu_set_register(cpu, CPU_REGISTER_X, cpu->X - 1);
-					cpu_print_instruction(cpu->operand, "DEX", CPU_ADDR_MODE_IMPLIED);
+					cpu_print_instruction(0, cpu->operand, "DEX", CPU_ADDR_MODE_IMPLIED);
 					break;
 				case 0x88:
 					// Decrement Y
 					cpu_set_register(cpu, CPU_REGISTER_Y, cpu->Y - 1);
-					cpu_print_instruction(cpu->operand, "DEY", CPU_ADDR_MODE_IMPLIED);
+					cpu_print_instruction(0, cpu->operand, "DEY", CPU_ADDR_MODE_IMPLIED);
 					break;
 				default:
 					printf("Opcode 0x%02x is invalid for transfer_register\n", cpu->current_opcode);
@@ -920,7 +921,7 @@ status_t jump_to_subroutine(cpu_t* cpu, Memory_t* memory)
 			cpu->effective_address.bytes.high_byte = high_addr_byte;
 			cpu->PC.addr = cpu->effective_address.addr;
 			cpu->state = CPU_STATE_FETCH;
-			cpu_print_instruction(cpu->effective_address.addr, "JSR", CPU_ADDR_MODE_ABSOLUTE);
+			cpu_print_instruction(cpu->effective_address.addr, 0, "JSR", CPU_ADDR_MODE_ABSOLUTE);
 			break;
 		}
 	}
@@ -995,7 +996,7 @@ status_t return_from_subroutine(cpu_t* cpu, Memory_t* memory)
 		{
 			cpu->PC.addr++;
 			cpu->state = CPU_STATE_FETCH;
-			cpu_print_instruction(cpu->PC.addr, "RTS", CPU_ADDR_MODE_IMPLIED);
+			cpu_print_instruction(cpu->PC.addr, 0, "RTS", CPU_ADDR_MODE_IMPLIED);
 			break;
 		}
 	}
@@ -1178,28 +1179,28 @@ status_t branch(cpu_t* cpu, Memory_t* memory)
 		switch (cpu->current_opcode)
 		{
 			case 0x10:
-				cpu_print_instruction(cpu->operand, "BPL", CPU_ADDR_MODE_RELATIVE);
+				cpu_print_instruction(cpu->PC.addr, cpu->operand, "BPL", CPU_ADDR_MODE_RELATIVE);
 				break;
 			case 0x30:
-				cpu_print_instruction(cpu->operand, "BMI", CPU_ADDR_MODE_RELATIVE);
+				cpu_print_instruction(cpu->PC.addr, cpu->operand, "BMI", CPU_ADDR_MODE_RELATIVE);
 				break;
 			case 0x50:
-				cpu_print_instruction(cpu->operand, "BVC", CPU_ADDR_MODE_RELATIVE);
+				cpu_print_instruction(cpu->PC.addr, cpu->operand, "BVC", CPU_ADDR_MODE_RELATIVE);
 				break;
 			case 0x70:
-				cpu_print_instruction(cpu->operand, "BVS", CPU_ADDR_MODE_RELATIVE);
+				cpu_print_instruction(cpu->PC.addr, cpu->operand, "BVS", CPU_ADDR_MODE_RELATIVE);
 				break;
 			case 0x90:
-				cpu_print_instruction(cpu->operand, "BCC", CPU_ADDR_MODE_RELATIVE);
+				cpu_print_instruction(cpu->PC.addr, cpu->operand, "BCC", CPU_ADDR_MODE_RELATIVE);
 				break;
 			case 0xB0:
-				cpu_print_instruction(cpu->operand, "BCS", CPU_ADDR_MODE_RELATIVE);
+				cpu_print_instruction(cpu->PC.addr, cpu->operand, "BCS", CPU_ADDR_MODE_RELATIVE);
 				break;
 			case 0xD0:
-				cpu_print_instruction(cpu->operand, "BNE", CPU_ADDR_MODE_RELATIVE);
+				cpu_print_instruction(cpu->PC.addr, cpu->operand, "BNE", CPU_ADDR_MODE_RELATIVE);
 				break;
 			case 0xF0:
-				cpu_print_instruction(cpu->operand, "BEQ", CPU_ADDR_MODE_RELATIVE);
+				cpu_print_instruction(cpu->PC.addr, cpu->operand, "BEQ", CPU_ADDR_MODE_RELATIVE);
 				break;
             default:
                 printf("Opcode 0x%x is invalid for branch", cpu->current_opcode);
@@ -1295,7 +1296,7 @@ status_t increment(cpu_t* cpu, Memory_t* memory)
 			}
 
 			// Print instruction			
-			cpu_print_instruction(cpu->operand, "INC", addr_mode);
+			cpu_print_instruction(cpu->effective_address.addr, cpu->operand, "INC", addr_mode);
 			cpu->state = CPU_STATE_FETCH;
 			break;
 		}
@@ -1378,7 +1379,7 @@ status_t test_bits(cpu_t* cpu, Memory_t* memory)
 				cpu->P |= STATUS_ZERO_FLAG_MASK;
 			}
 			
-			cpu_print_instruction(cpu->operand, "BIT", addr_mode);
+			cpu_print_instruction(cpu->effective_address.addr, cpu->operand, "BIT", addr_mode);
 			cpu->state = CPU_STATE_FETCH;
 			break;
 		}
@@ -1453,7 +1454,7 @@ status_t or_accumulator(cpu_t* cpu, Memory_t* memory)
 			}
 			
 			
-			cpu_print_instruction(accumulator, "ORA", addr_mode);
+			cpu_print_instruction(cpu->effective_address.addr, accumulator, "ORA", addr_mode);
 			cpu->state = CPU_STATE_FETCH;
 			break;
 		}
@@ -1630,36 +1631,36 @@ static opcode_t opcode_jump_table[] = {
 	[0x9E] = NULL,
 	[0x9F] = NULL,
 	[0xA0] = load,
-	[0xA1] = NULL,
+	[0xA1] = load,
 	[0xA2] = load,
 	[0xA3] = NULL,
-	[0xA4] = NULL,
-	[0xA5] = NULL,
-	[0xA6] = NULL,
+	[0xA4] = load,
+	[0xA5] = load,
+	[0xA6] = load,
 	[0xA7] = NULL,
 	[0xA8] = transfer_register,
 	[0xA9] = load,
 	[0xAA] = transfer_register,
 	[0xAB] = NULL,
-	[0xAC] = NULL,
-	[0xAD] = NULL,
-	[0xAE] = NULL,
+	[0xAC] = load,
+	[0xAD] = load,
+	[0xAE] = load,
 	[0xAF] = NULL,
 	[0xB0] = branch,
-	[0xB1] = NULL,
+	[0xB1] = load,
 	[0xB2] = NULL,
 	[0xB3] = NULL,
-	[0xB4] = NULL,
-	[0xB5] = NULL,
-	[0xB6] = NULL,
+	[0xB4] = load,
+	[0xB5] = load,
+	[0xB6] = load,
 	[0xB7] = NULL,
 	[0xB8] = proc_flag_set_clear,
-	[0xB9] = NULL,
+	[0xB9] = load,
 	[0xBA] = transfer_register,
 	[0xBB] = NULL,
-	[0xBC] = NULL,
-	[0xBD] = NULL,
-	[0xBE] = NULL,
+	[0xBC] = load,
+	[0xBD] = load,
+	[0xBE] = load,
 	[0xBF] = NULL,
 	[0xC0] = NULL,
 	[0xC1] = NULL,

@@ -47,6 +47,6 @@ status_t cpu_get_opcode_register(uint8_t opcode, cpu_register_t* reg);
 uint8_t cpu_get_target_register(uint8_t opcode);
 
 // Print the instruction mnemonic for debugging purposes
-void cpu_print_instruction(uint16_t operand, char* instr_name, uint8_t addr_mode);
+void cpu_print_instruction(uint16_t effective_addr, uint8_t operand, char* instr_name, uint8_t addr_mode);
 
 #endif

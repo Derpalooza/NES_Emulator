@@ -93,7 +93,7 @@ cpu_addr_mode_t cpu_get_opcode_addressing_mode(uint8_t opcode)
 status_t cpu_get_opcode_register(uint8_t opcode, cpu_register_t* reg)
 {
     // Obtain the register from bits 0-1 in the opcode
-	uint8_t target_register = opcode & 0x3;
+	uint8_t target_register = cpu_get_target_register(opcode);
 
     switch (target_register)
     {
@@ -121,7 +121,7 @@ uint8_t cpu_get_target_register(uint8_t opcode)
     return target_reg;
 }
 
-void cpu_print_instruction(uint16_t operand, char* instr_name, uint8_t addr_mode)
+void cpu_print_instruction(uint16_t effective_addr, uint8_t operand, char* instr_name, uint8_t addr_mode)
 {
     char addressing_mode[8];
     switch (addr_mode)
@@ -187,6 +187,6 @@ void cpu_print_instruction(uint16_t operand, char* instr_name, uint8_t addr_mode
     }
     else
     {
-        printf("%s: %s 0x%x\n", addressing_mode, instr_name, operand);
+        printf("%s: %s 0x%x 0x%x\n", addressing_mode, instr_name, effective_addr, operand);
     }
 }
