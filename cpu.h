@@ -1,8 +1,9 @@
 #ifndef _CPU_H_
 #define _CPU_H_
 
-#include "memory.h"
 #include "status.h"
+
+#include <stdint.h>
 
 // Processor Status register masks
 #define STATUS_CARRY_FLAG_MASK              (1 << 0)
@@ -56,12 +57,10 @@ typedef struct
 } cpu_t;
 
 // Put CPU to initial state
-status_t cpu_init(cpu_t* cpu, Memory_t* memory);
-
-status_t cpu_trigger_interrupt(cpu_t* cpu, Memory_t* memory);
+status_t cpu_init(cpu_t* cpu);
 
 // Advance the CPU by one cycle
-status_t cpu_execute_cycle(cpu_t* cpu, Memory_t* memory);
+status_t cpu_execute_cycle(cpu_t* cpu);
 
 
 #endif

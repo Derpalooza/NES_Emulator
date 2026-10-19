@@ -4,9 +4,8 @@
 #include <stdint.h>
 
 #include "cpu.h"
-#include "memory.h"
 
-typedef status_t (*opcode_t)(cpu_t*, Memory_t*);
+typedef status_t (*opcode_t)(cpu_t*);
 
 opcode_t get_opcode_jump_table(uint8_t opcode);
 

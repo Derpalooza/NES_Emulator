@@ -2,7 +2,7 @@
 #include <unistd.h>
 #include <stdbool.h>
 
-#include "memory.h"
+#include "bus.h"
 #include "cpu.h"
 #include "status.h"
 
@@ -17,8 +17,7 @@ int main(int argc, char *argv[])
 
     char* rom_file_path = argv[1];
 
-    Memory_t memory = {0};
-    status = memory_init(&memory);
+    status = bus_init();
     if (status != STATUS_SUCCESS)
     {
         printf("Failed with error %d\n", status);
@@ -27,7 +26,7 @@ int main(int argc, char *argv[])
 
     printf("argc = %d\n", argc);
 
-    status = memory_load_rom(&memory, rom_file_path);
+    status = bus_load_rom(rom_file_path);
     if (status != STATUS_SUCCESS)
     {
         printf("Failed with error %d\n", status);
@@ -37,11 +36,11 @@ int main(int argc, char *argv[])
     printf("argc = %d\n", argc);
 
     cpu_t cpu = {0};
-    cpu_init(&cpu, &memory);
+    cpu_init(&cpu);
 
     while (true)
     {
-        int status = cpu_execute_cycle(&cpu, &memory);
+        int status = cpu_execute_cycle(&cpu);
 
         if (status != 0)
         {

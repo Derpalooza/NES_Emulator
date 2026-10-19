@@ -1,6 +1,7 @@
 #include "cpu_internal.h"
 
 #include <stdio.h>
+#include <stdint.h>
 
 // Set zero flag if data is zero
 static void check_status_zero_flag(cpu_t* cpu, uint8_t data)

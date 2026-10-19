@@ -3,14 +3,14 @@
 #include <stdio.h>
 
 #include "opcode.h"
-#include "memory.h"
+#include "bus.h"
 
 // TODO: The ROM start address will be read directly from the reset vector for now. But this needs to change
 //       once interrupts are properly implemented
 #define CPU_RESET_VECTOR                   0xFFFC
 #define STACK_POINTER_RESET                0x00
 
-status_t cpu_init(cpu_t* cpu, Memory_t* memory)
+status_t cpu_init(cpu_t* cpu)
 {
     status_t status = STATUS_SUCCESS;
 
@@ -18,17 +18,17 @@ status_t cpu_init(cpu_t* cpu, Memory_t* memory)
     uint8_t start_addr_lower = 0;
     uint8_t start_addr_upper = 0;
 
-    status = memory_read_byte(memory, CPU_RESET_VECTOR, &start_addr_lower);
+    status = bus_read_byte(CPU_RESET_VECTOR, &start_addr_lower);
     if (status != STATUS_SUCCESS)
     {
-        printf("memory_read_byte failed with status = %d", status);
+        printf("bus_read_byte failed with status = %d", status);
         return status;
     }
 
-    status = memory_read_byte(memory, CPU_RESET_VECTOR+1, &start_addr_upper);
+    status = bus_read_byte(CPU_RESET_VECTOR+1, &start_addr_upper);
     if (status != STATUS_SUCCESS)
     {
-        printf("memory_read_byte failed with status = %d", status);
+        printf("bus_read_byte failed with status = %d", status);
         return status;
     }
 
@@ -51,23 +51,18 @@ status_t cpu_init(cpu_t* cpu, Memory_t* memory)
     cpu->operand = 0;
 }
 
-status_t cpu_trigger_interrupt(cpu_t* cpu, Memory_t* memory)
-{
-    
-}
-
 // Advance the CPU by one cycle
-status_t cpu_execute_cycle(cpu_t* cpu, Memory_t* memory)
+status_t cpu_execute_cycle(cpu_t* cpu)
 {
     status_t status = STATUS_SUCCESS;
 
     if (cpu->state == CPU_STATE_FETCH)
     {
         // Grab and save the next opcode
-        status = memory_read_byte(memory, cpu->PC.addr, &cpu->current_opcode);
+        status = bus_read_byte(cpu->PC.addr, &cpu->current_opcode);
         if (status != STATUS_SUCCESS)
         {
-            printf("memory_read_byte failed with status = %d\n", status);
+            printf("bus_read_byte failed with status = %d\n", status);
             return status;
         }
 
@@ -84,7 +79,7 @@ status_t cpu_execute_cycle(cpu_t* cpu, Memory_t* memory)
     }
     else
     {
-        status = opcode_fn(cpu, memory);
+        status = opcode_fn(cpu);
         if (status != STATUS_SUCCESS)
         {
             printf("Running opcode failed with status = %d\n", status);
