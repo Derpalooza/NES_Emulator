@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#include "cpu.h"
+#include "cpu_internal.h"
 
 typedef status_t (*opcode_t)(cpu_t*);
 

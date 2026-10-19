@@ -35,18 +35,16 @@ int main(int argc, char *argv[])
 
     printf("argc = %d\n", argc);
 
-    cpu_t cpu = {0};
-    cpu_init(&cpu);
+    cpu_init();
 
     while (true)
     {
-        int status = cpu_execute_cycle(&cpu);
+        int status = bus_execute_clock_cycle();
 
         if (status != 0)
         {
             printf("Failed to execute CPU cycle\n");
             break;
         }
-        //usleep(5000);
     }
 }

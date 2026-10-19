@@ -91,6 +91,7 @@ cpu_addr_mode_t cpu_get_opcode_addressing_mode(uint8_t opcode)
     }
 }
 
+// TODO: Do we need both cpu_get_opcode_register and cpu_get_target_register?
 status_t cpu_get_opcode_register(uint8_t opcode, cpu_register_t* reg)
 {
     // Obtain the register from bits 0-1 in the opcode

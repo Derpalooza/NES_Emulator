@@ -36,6 +36,9 @@ typedef struct
 // Global memory instance
 static Memory_t g_memory = {0};
 
+// List of callbacks for all registered devices
+static bus_events_t g_device_events[NUM_BUS_DEVICES] = {0};
+
 // Parse 16-bit address and return a pointer to the corresponding data
 static uint8_t* route_address(uint16_t addr)
 {
@@ -84,7 +87,9 @@ static uint8_t* route_address(uint16_t addr)
 
 status_t bus_init()
 {
+    // Reset global variables
     memset(&g_memory, 0, sizeof(Memory_t));
+    memset(g_device_events, 0, sizeof(g_device_events)); 
 
     return STATUS_SUCCESS;
 }
@@ -180,4 +185,30 @@ status_t bus_write_byte(uint16_t addr, uint8_t data)
     *target_addr = data;
 
     return STATUS_SUCCESS;
+}
+
+status_t bus_register_device(bus_device_t device_type, const bus_events_t *callbacks)
+{
+    if ((device_type >= NUM_BUS_DEVICES) || (callbacks == NULL))
+    {
+        printf("Invalid arguments provided\n");
+        return STATUS_EINVALIDPARAMS;
+    }
+
+    g_device_events[device_type].on_clock_cycle = callbacks->on_clock_cycle;
+    g_device_events[device_type].on_read = callbacks->on_read;
+    g_device_events[device_type].on_write =  callbacks->on_write;
+
+    return STATUS_SUCCESS;
+}
+
+status_t bus_execute_clock_cycle()
+{
+    for (uint32_t i = 0; i < NUM_BUS_DEVICES; i++)
+    {
+        if (g_device_events[i].on_clock_cycle != NULL)
+        {
+            g_device_events[i].on_clock_cycle();
+        }
+    }
 }
