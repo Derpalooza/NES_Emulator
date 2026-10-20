@@ -24,7 +24,6 @@ typedef struct
 
 typedef struct
 {
-    uint8_t RAM[RAM_SIZE];
     uint8_t PPU_Registers[NUM_PPU_REGISTERS];
     uint8_t APU_Registers[NUM_APU_REGISTERS];
     uint8_t Expansion_ROM[EXPANSION_ROM_SIZE];

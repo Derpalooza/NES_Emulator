@@ -10,13 +10,14 @@
 typedef struct {
     status_t (*on_clock_cycle)(void);
     status_t (*on_read)(uint16_t addr, uint8_t *data);
-    status_t (*on_write)(uint16_t addr, uint8_t *data);
+    status_t (*on_write)(uint16_t addr, uint8_t data);
 } bus_events_t;
 
 typedef enum
 {
     BUS_DEVICE_CPU = 0,
     BUS_DEVICE_PPU,
+    BUS_DEVICE_RAM,
     NUM_BUS_DEVICES,
 } bus_device_t;
 
